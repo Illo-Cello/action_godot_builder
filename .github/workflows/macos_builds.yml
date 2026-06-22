@@ -26,11 +26,11 @@ env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   # Used for the cache key. Add version suffix to force clean build.
   GODOT_BASE_BRANCH: ${{ inputs.base-branch }}
-  SCONSFLAGS: verbose=yes warnings=extra werror=yes strict_checks=yes debug_symbols=no use_static_cpp=yes "accesskit_sdk_path=${{ github.workspace }}/accesskit-c-0.18.0/"
+  SCONSFLAGS: verbose=yes warnings=extra werror=yes strict_checks=yes debug_symbols=no use_static_cpp=yes
 
 jobs:
   build-macos:
-    runs-on: macos-latest
+    runs-on: macos-26
     name: ${{ matrix.name }}
     strategy:
       fail-fast: false
@@ -74,26 +74,27 @@ jobs:
           ref: ${{ inputs.tag }}
           submodules: recursive
 
-      - name: Select Xcode 26
-        run: sudo xcode-select -s /Applications/Xcode_26.0.1.app
-
-      - name: Checkout builder scripts (Vulkan, purge_cache, etc.)
-        uses: actions/checkout@v6
-        with:
-          repository: appsinacup/action_godot_builder
-          path: builder_repo
-          fetch-depth: 1
+      - name: Download pre-built ANGLE
+        shell: sh
+        id: angle-sdk
+        run: |
+          if python3 ./misc/scripts/install_angle.py; then
+            echo "ANGLE_ENABLED=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::ANGLE SDK installation failed, building without ANGLE support."
+            echo "ANGLE_ENABLED=no" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Download pre-built AccessKit
-        uses: dsaltares/fetch-gh-release-asset@1.1.2
-        with:
-          repo: AccessKit/accesskit-c
-          version: tags/0.18.0
-          file: accesskit-c-0.18.0.zip
-          target: accesskit-c-0.18.0/accesskit_c.zip
-
-      - name: Extract pre-built AccessKit
-        run: unzip -o accesskit-c-0.18.0/accesskit_c.zip
+        shell: sh
+        id: accesskit-sdk
+        run: |
+          if python3 ./misc/scripts/install_accesskit.py; then
+            echo "ACCESSKIT_ENABLED=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::AccessKit SDK installation failed, building without AccessKit support."
+            echo "ACCESSKIT_ENABLED=no" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Restore Godot build cache
         uses: ./.github/actions/godot-cache-restore
@@ -113,17 +114,17 @@ jobs:
         if: matrix.build-mono
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '8.0.100'
 
       - name: Setup Vulkan SDK
         run: |
-          sh builder_repo/install_vulkan_sdk_macos.sh
+          sh misc/scripts/install_vulkan_sdk_macos.sh
 
       - name: Mono tools build (pre-glue)
         if: matrix.build-mono
         uses: ./.github/actions/godot-build
         with:
-          scons-flags: ${{ env.SCONSFLAGS }} arch=x86_64 ${{ inputs.lto }} ${{ inputs.module_flags }} module_mono_enabled=yes mono_glue=no
+          scons-flags: ${{ env.SCONSFLAGS }} arch=x86_64 ${{ inputs.lto }} ${{ inputs.module_flags }} module_mono_enabled=yes mono_glue=no angle=${{ steps.angle-sdk.outputs.ANGLE_ENABLED }} accesskit=${{ steps.accesskit-sdk.outputs.ACCESSKIT_ENABLED }}
           platform: macos
           target: editor
 
@@ -135,7 +136,7 @@ jobs:
         if: matrix.target == 'editor'
         uses: ./.github/actions/godot-build
         with:
-          scons-flags: ${{ env.SCONSFLAGS }} arch=x86_64 ${{ inputs.lto }} ${{ inputs.module_flags }} ${{ matrix.scons-mono-flags }}
+          scons-flags: ${{ env.SCONSFLAGS }} arch=x86_64 ${{ inputs.lto }} ${{ inputs.module_flags }} ${{ matrix.scons-mono-flags }} angle=${{ steps.angle-sdk.outputs.ANGLE_ENABLED }} accesskit=${{ steps.accesskit-sdk.outputs.ACCESSKIT_ENABLED }}
           platform: macos
           target: ${{ matrix.target }}
 
@@ -143,7 +144,7 @@ jobs:
         if: matrix.target == 'editor'
         uses: ./.github/actions/godot-build
         with:
-          scons-flags: ${{ env.SCONSFLAGS }} arch=arm64 ${{ inputs.lto }} ${{ inputs.module_flags }} ${{ matrix.scons-mono-flags }}
+          scons-flags: ${{ env.SCONSFLAGS }} arch=arm64 ${{ inputs.lto }} ${{ inputs.module_flags }} ${{ matrix.scons-mono-flags }} angle=${{ steps.angle-sdk.outputs.ANGLE_ENABLED }} accesskit=${{ steps.accesskit-sdk.outputs.ACCESSKIT_ENABLED }}
           platform: macos
           target: ${{ matrix.target }}
 
@@ -151,7 +152,7 @@ jobs:
         if: matrix.target != 'editor'
         uses: ./.github/actions/godot-build
         with:
-          scons-flags: ${{ env.SCONSFLAGS }} arch=x86_64 ${{ inputs.lto }} ${{ inputs.template_module_flags }} ${{ matrix.scons-mono-flags }}
+          scons-flags: ${{ env.SCONSFLAGS }} arch=x86_64 ${{ inputs.lto }} ${{ inputs.template_module_flags }} ${{ matrix.scons-mono-flags }} angle=${{ steps.angle-sdk.outputs.ANGLE_ENABLED }} accesskit=${{ steps.accesskit-sdk.outputs.ACCESSKIT_ENABLED }}
           platform: macos
           target: ${{ matrix.target }}
 
@@ -159,7 +160,7 @@ jobs:
         if: matrix.target != 'editor'
         uses: ./.github/actions/godot-build
         with:
-          scons-flags: ${{ env.SCONSFLAGS }} arch=arm64 ${{ inputs.lto }} ${{ inputs.template_module_flags }} ${{ matrix.scons-mono-flags }}
+          scons-flags: ${{ env.SCONSFLAGS }} arch=arm64 ${{ inputs.lto }} ${{ inputs.template_module_flags }} ${{ matrix.scons-mono-flags }} angle=${{ steps.angle-sdk.outputs.ANGLE_ENABLED }} accesskit=${{ steps.accesskit-sdk.outputs.ACCESSKIT_ENABLED }}
           platform: macos
           target: ${{ matrix.target }}
 
@@ -167,7 +168,7 @@ jobs:
         uses: ./.github/actions/godot-cache-save
         with:
           cache-name: macos-${{ matrix.target }}-${{ matrix.scons-mono-flags }}-${{ inputs.lto }}
-          purge-cache-script: builder_repo/misc/scripts/purge_cache.py
+          purge-cache-script: misc/scripts/purge_cache.py
         continue-on-error: true
 
       - name: Build .NET solutions
@@ -183,6 +184,7 @@ jobs:
             mono_suffix=".mono"
           fi
           lipo -create ./bin/godot.macos.${{ matrix.target }}.x86_64${mono_suffix} ./bin/godot.macos.${{ matrix.target }}.arm64${mono_suffix} -output ./bin/godot.macos.${{ matrix.target }}${mono_suffix}.universal
+          rm -rf ./bin/build_deps
           strip bin/godot.*
           chmod +x bin/godot.*
 

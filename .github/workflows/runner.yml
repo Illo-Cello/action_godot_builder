@@ -9,15 +9,15 @@ on:
       base-branch:
         description: 'Base branch to use for the builds'
         type: string
-        default: '4.6'
+        default: '4.7'
       tag:
         description: 'tag to use for downloading the repo'
         type: string
-        default: '4.6.1-stable'
+        default: '4.7-stable'
       tag_release:
         description: 'tag to use for releasing the build'
         type: string
-        default: '4.6.1.stable'
+        default: '4.7-stable'
       module_flags:
         description: 'Extra module flags, e.g. module_webm_enabled=no'
         type: string
@@ -45,6 +45,7 @@ jobs:
     uses: ./.github/workflows/android_builds.yml
     with:
       repo: ${{ inputs.repo }}
+      base-branch: ${{ inputs.base-branch }}
       tag: ${{ inputs.tag }}
       lto: ${{ inputs.lto }}
       module_flags: ${{ inputs.module_flags }}
@@ -56,6 +57,7 @@ jobs:
     uses: ./.github/workflows/ios_builds.yml
     with:
       repo: ${{ inputs.repo }}
+      base-branch: ${{ inputs.base-branch }}
       tag: ${{ inputs.tag }}
       lto: ${{ inputs.lto }}
       module_flags: ${{ inputs.module_flags }}
@@ -67,6 +69,7 @@ jobs:
     uses: ./.github/workflows/linux_builds.yml
     with:
       repo: ${{ inputs.repo }}
+      base-branch: ${{ inputs.base-branch }}
       tag: ${{ inputs.tag }}
       lto: ${{ inputs.lto == 'lto=thin' && 'lto=none' || inputs.lto }}
       module_flags: ${{ inputs.module_flags }}
@@ -78,6 +81,7 @@ jobs:
     uses: ./.github/workflows/macos_builds.yml
     with:
       repo: ${{ inputs.repo }}
+      base-branch: ${{ inputs.base-branch }}
       tag: ${{ inputs.tag }}
       lto: ${{ inputs.lto }}
       module_flags: ${{ inputs.module_flags }}
@@ -89,6 +93,7 @@ jobs:
     uses: ./.github/workflows/windows_builds.yml
     with:
       repo: ${{ inputs.repo }}
+      base-branch: ${{ inputs.base-branch }}
       tag: ${{ inputs.tag }}
       lto: ${{ inputs.lto == 'lto=thin' && 'lto=none' || inputs.lto }}
       module_flags: ${{ inputs.module_flags }}
@@ -100,6 +105,7 @@ jobs:
     uses: ./.github/workflows/web_builds.yml
     with:
       repo: ${{ inputs.repo }}
+      base-branch: ${{ inputs.base-branch }}
       tag: ${{ inputs.tag }}
       lto: ${{ inputs.lto }}
       module_flags: ${{ inputs.module_flags }}

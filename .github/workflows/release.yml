@@ -41,8 +41,9 @@ jobs:
       BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
       P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
       KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ''
     name: 🚀 Create Release
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -62,19 +63,9 @@ jobs:
       - name: Setup Python and SCons
         uses: ./.github/actions/godot-deps
 
-      - name: Select Xcode 26
-        run: sudo xcode-select -s /Applications/Xcode_26.0.1.app
-
-      - name: Checkout builder scripts (Vulkan, etc.)
-        uses: actions/checkout@v6
-        with:
-          repository: appsinacup/action_godot_builder
-          path: builder_repo
-          fetch-depth: 1
-
       - name: Setup Vulkan SDK
         run: |
-          sh builder_repo/install_vulkan_sdk_macos.sh
+          sh misc/scripts/install_vulkan_sdk_macos.sh
 
       # https://docs.github.com/en/actions/deployment/deploying-xcode-applications/installing-an-apple-certificate-on-macos-runners-for-xcode-development
       - name: Install the Apple certificate
@@ -257,9 +248,8 @@ jobs:
           cp -f bin/android_source.zip "release/templates/android_source.zip"
           cp -f bin/android_release.apk "release/templates/android_release.apk"
           cp -f bin/android_debug.apk "release/templates/android_debug.apk"
-
-          cp bin/godot.web.template_release.wasm32.zip "release/templates/web_release.zip"
-          cp bin/godot.web.template_debug.wasm32.zip "release/templates/web_debug.zip"
+          cp bin/godot.web.template_release.wasm64.zip "release/templates/web_release.zip"
+          cp bin/godot.web.template_debug.wasm64.zip "release/templates/web_debug.zip"
           cp bin/godot.web.template_release.wasm32.nothreads.zip "release/templates/web_nothreads_release.zip"
           cp bin/godot.web.template_debug.wasm32.nothreads.zip "release/templates/web_nothreads_debug.zip"
           cp bin/godot.web.template_release.wasm32.dlink.zip "release/templates/web_dlink_release.zip"
